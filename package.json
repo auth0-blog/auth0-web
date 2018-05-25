@@ -3,7 +3,7 @@
   "version": "1.7.3",
   "description": "",
   "main": "./dist/index.js",
-  "types": "./index.d.ts",
+  "types": "./src/index.ts",
   "directories": {
     "test": "tests"
   },
@@ -53,6 +53,7 @@
     "ts-node": "^3.3.0"
   },
   "dependencies": {
+    "@types/auth0-js": "^8.11.2",
     "auth0-js": "^9.0.0-beta.8",
     "typescript": "^2.6.2"
   }

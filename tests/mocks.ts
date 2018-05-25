@@ -1,23 +1,29 @@
 import * as mockery from 'mockery';
-import {UserProfile} from "../src/profile";
-import {Auth0Properties} from "../src/properties";
+import {Auth0UserProfile, AuthOptions, LogoutOptions} from 'auth0-js';
 
 mockery.enable({
   warnOnReplace: false,
   warnOnUnregistered: false
 });
 
-const auth0Mock = {
-  WebAuth: (properties: Auth0Properties) => {
+export const auth0Mock = {
+  WebAuth: (properties: AuthOptions) => {
     let called = false;
     return {
-      authorize: () => {
-        called = true;
-      },
-      called: () => (called),
       client: {
-        userInfo: (accessToken: string, cb: (err, profile: UserProfile) => void) => {
-          cb(null, {email: 'bruno.krebs@auth0.com', userId: 'google-oauth2|100112663908880255058'});
+        userInfo: (accessToken: string, cb: (err, profile: Auth0UserProfile) => void) => {
+          cb(null, {
+            name: 'Bruno Krebs',
+            nickname: 'brunokrebs',
+            picture: 'https://cdn.auth0.com/blog/profile-picture/bruno-krebs.png',
+            email: 'bruno.krebs@auth0.com',
+            user_id: 'google-oauth2|100112663908880255058',
+            clientID: '',
+            identities: [],
+            created_at: '1527222254673',
+            updated_at: '1527222254673',
+            sub: 'google-oauth2|100112663908880255058',
+          });
         }
       },
       parseHash: (cb) => {
@@ -31,6 +37,9 @@ const auth0Mock = {
         cb(null, {
           accessToken: 'some-access-token'
         });
+      },
+      logout: () => {
+
       }
     }
   }

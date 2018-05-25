@@ -1,152 +1,138 @@
 import './mocks';
 import 'jsdom-global/register'
 
-import * as Auth0Web from '../src';
-
 import * as chai from 'chai';
-import * as sinonjs from 'sinon';
-import {AUTHORIZATION_CODE} from "../src/index";
-import {Auth0Properties} from "../src/properties";
+import Auth0Web, {Subscriber, AuthResult} from '../src';
+
+const domain = 'bk-samples.auth0.com';
+const clientID = 'Nr2S6us8e503J9qNFjgpy8Id6cGDHpjZ';
+const redirectUri = 'http://app.local:3000/callback';
 
 describe('Testing basic functionality of this wrapper', () => {
 
-  it('should be able to import functions', checkImportFunctions);
-  it('should accept basic configuration', checkBasicConfiguration);
-  it('should accept full configuration', checkFullConfiguration);
-  it('should clear identity/token properties from localStorage', checkSignOut);
-  it('should be able to handle Auth0 calback', checkHandleAuthCallback);
-  it('should be able to inform if user is authenticated', checkAuthenticated);
+  it('should be able to use public API', checkPublicAPI);
+  it('should be able to generate new instances', checkConstructor);
+  it('should be able to parseHash and authenticate', checkParseHash);
+  it('should clear session', checkSignOut);
+  it('should be able to return profile', checkGetProfile);
+  it('should be able to support subscribers', checkSubscribeAuthenticated);
   it('should be able to support subscribers when not auth', checkSubscribeUnauthenticated);
-  it('should be able to support subscribers when auth', checkSubscribeAuthenticated);
-  it('should return profile from localStorage', checkGetProfile);
-  it('should call authorize', checkSignIn);
-  it('should support authorization code flow', checkFlows);
   it('should support silent auth', checkSilentAuth);
 
-  function checkImportFunctions() {
-    chai.expect(Auth0Web.configure).to.not.be.undefined;
-    chai.expect(Auth0Web.isAuthenticated).to.not.be.undefined;
-    chai.expect(Auth0Web.signIn).to.not.be.undefined;
-    chai.expect(Auth0Web.handleAuthCallback).to.not.be.undefined;
-    chai.expect(Auth0Web.signOut).to.not.be.undefined;
-    chai.expect(Auth0Web.getProfile).to.not.be.undefined;
-  }
+  function checkPublicAPI() {
+    chai.expect(Auth0Web).to.not.be.undefined;
 
-  function checkBasicConfiguration() {
-    const spiedConfigure = sinonjs.spy(Auth0Web.configure);
-    chai.expect(spiedConfigure.called).to.be.false;
-    spiedConfigure({domain: 'bk-samples.auth0.com', clientID: 'someClientID'});
-    chai.expect(spiedConfigure.called).to.be.true;
-  }
+    const subscriber: Subscriber = (authenticated, audience) => {};
+    chai.expect(subscriber).to.not.be.undefined;
 
-  function checkFullConfiguration() {
-    const spiedConfigure = sinonjs.spy(Auth0Web.configure);
-    chai.expect(spiedConfigure.called).to.be.false;
-
-    const auth0Properties = {
-      domain: 'bk-samples.auth0.com',
-      clientID: 'someClientID',
-      callbackUrl: 'http://localhost:4200/callback',
-      scope: 'read:contacts',
-      audience: 'https://contacts.auth0samples.com/'
+    const authenticationResult: AuthResult = {
+      accessToken: '', idToken: '', expiresIn: 0,
     };
-    spiedConfigure(auth0Properties);
-
-    chai.expect(spiedConfigure.called).to.be.true;
+    chai.expect(authenticationResult).to.not.be.undefined;
   }
 
-  function checkSignOut() {
-    const OTHER_KEY = 'some-other-key';
-    localStorage.setItem(OTHER_KEY, 'some-other-data');
-    localStorage.setItem(Auth0Web.ACCESS_TOKEN, 'fake-access-token');
-    localStorage.setItem(Auth0Web.ID_TOKEN, 'fake-id-token');
-    localStorage.setItem(Auth0Web.PROFILE, 'fake-profile');
-    localStorage.setItem(Auth0Web.EXPIRES_AT, 'one-day');
-
-    Auth0Web.signOut();
-
-    chai.expect(localStorage.getItem(Auth0Web.ACCESS_TOKEN)).to.be.null;
-    chai.expect(localStorage.getItem(Auth0Web.ID_TOKEN)).to.be.null;
-    chai.expect(localStorage.getItem(Auth0Web.PROFILE)).to.be.null;
-    chai.expect(localStorage.getItem(Auth0Web.EXPIRES_AT)).to.be.null;
-    chai.expect(localStorage.getItem(OTHER_KEY)).to.not.be.null; //not null
-  }
-
-  function checkHandleAuthCallback() {
-    Auth0Web.configure({domain: 'bk-samples.auth0.com', clientID: 'someClientID'});
-    chai.expect(Auth0Web.isAuthenticated()).to.be.false;
-
-    Auth0Web.handleAuthCallback();
-
-    chai.expect(Auth0Web.isAuthenticated()).to.be.true;
-    chai.expect(localStorage.getItem(Auth0Web.ACCESS_TOKEN)).to.be.not.null;
-    chai.expect(localStorage.getItem(Auth0Web.ID_TOKEN)).to.be.not.null;
-    chai.expect(localStorage.getItem(Auth0Web.PROFILE)).to.be.not.null;
-    chai.expect(localStorage.getItem(Auth0Web.EXPIRES_AT)).to.be.not.null;
-  }
-
-  function checkAuthenticated() {
-    Auth0Web.signOut();
-    chai.expect(Auth0Web.isAuthenticated()).to.be.false;
-  }
-
-  function checkSubscribeUnauthenticated() {
-    const subscription = Auth0Web.subscribe(signedIn => {
-      chai.expect(signedIn).to.be.false;
+  function checkConstructor() {
+    const auth0Client = new Auth0Web({
+      domain,
+      clientID,
+      redirectUri,
     });
-    subscription.unsubscribe();
+
+    const currentProperties = auth0Client.getProperties();
+    chai.expect(currentProperties.domain).to.be.equal(domain);
+    chai.expect(currentProperties.clientID).to.be.equal(clientID);
+    chai.expect(currentProperties.redirectUri).to.be.equal(redirectUri);
+    chai.expect(currentProperties.audience).to.be.undefined;
   }
 
-  function checkSubscribeAuthenticated() {
-    Auth0Web.configure({domain: 'bk-samples.auth0.com', clientID: 'someClientID'});
-    chai.expect(Auth0Web.isAuthenticated()).to.be.false;
-    let subscription = Auth0Web.subscribe(signedIn => {
-      chai.expect(signedIn).to.be.false;
+  async function checkParseHash() {
+    const auth0Client = new Auth0Web({
+      domain,
+      clientID,
+      redirectUri,
     });
-    subscription.unsubscribe();
 
-    subscription = Auth0Web.subscribe(signedIn => {
-      chai.expect(signedIn).to.be.equal(Auth0Web.isAuthenticated());
+    chai.expect(auth0Client.isAuthenticated()).to.be.false;
+    await auth0Client.parseHash();
+    chai.expect(auth0Client.isAuthenticated()).to.be.true;
+  }
+
+  async function checkSignOut() {
+    const auth0Client = new Auth0Web({
+      domain,
+      clientID,
+      redirectUri,
     });
-    Auth0Web.handleAuthCallback();
-    Auth0Web.signOut();
-    subscription.unsubscribe();
+
+    await auth0Client.parseHash();
+
+    chai.expect(auth0Client.isAuthenticated()).to.be.true;
+    chai.expect(auth0Client.getProfile()).not.to.be.undefined;
+    chai.expect(auth0Client.getAccessToken()).not.to.be.undefined;
+
+    auth0Client.signOut();
+
+    chai.expect(auth0Client.isAuthenticated()).to.be.false;
+    chai.expect(auth0Client.getProfile()).to.be.undefined;
+    chai.expect(auth0Client.getAccessToken()).to.be.undefined;
   }
 
   function checkGetProfile() {
-    Auth0Web.configure({domain: 'bk-samples.auth0.com', clientID: 'someClientID'});
-    chai.expect(Auth0Web.getProfile()).to.be.null;
-    Auth0Web.handleAuthCallback();
-    chai.expect(Auth0Web.getProfile()).to.not.be.null;
+    const auth0Client = new Auth0Web({
+      domain,
+      clientID,
+      redirectUri,
+    });
+
+    chai.expect(auth0Client.getProfile()).to.be.undefined;
+    auth0Client.parseHash();
+    chai.expect(auth0Client.getProfile()).not.to.be.null;
+    chai.expect(auth0Client.getProfile()).not.to.be.undefined;
   }
 
-  function checkSignIn() {
-    Auth0Web.configure({domain: 'bk-samples.auth0.com', clientID: 'someClientID'});
-    chai.expect(Auth0Web.auth0Client.called()).to.be.false;
-    Auth0Web.signIn();
-    chai.expect(Auth0Web.auth0Client.called()).to.be.true;
+  function checkSubscribeAuthenticated(done) {
+    const auth0Client = new Auth0Web({
+      domain,
+      clientID,
+      redirectUri,
+    });
+
+    chai.expect(auth0Client.isAuthenticated()).to.be.false;
+
+    const unsubscribe = auth0Client.subscribe(signedIn => {
+      chai.expect(signedIn).to.be.equal(auth0Client.isAuthenticated());
+      if (!signedIn) done();
+    });
+
+    auth0Client.parseHash();
+    auth0Client.signOut();
+    unsubscribe();
   }
 
-  function checkFlows() {
-    // checking default config
-    let auth0Properties: Auth0Properties = {domain: 'bk-samples.auth0.com', clientID: 'someClientID'};
-    Auth0Web.configure(auth0Properties);
-    chai.expect(Auth0Web.auth0Client.properties().responseType).to.be.equal('token id_token');
+  function checkSubscribeUnauthenticated() {
+    const auth0Client = new Auth0Web({
+      domain,
+      clientID,
+      redirectUri,
+    });
 
-    // checking authorization code flow
-    auth0Properties = {domain: 'bk-samples.auth0.com', clientID: 'someClientID', oauthFlow: AUTHORIZATION_CODE};
-    Auth0Web.configure(auth0Properties);
-    chai.expect(Auth0Web.auth0Client.properties().responseType).to.be.equal(AUTHORIZATION_CODE);
+    const unsubscribe = auth0Client.subscribe(() => {});
+    unsubscribe();
   }
 
   function checkSilentAuth() {
-    chai.expect(Auth0Web.getExtraToken('transactions')).to.be.undefined;
-    chai.expect(Auth0Web.getExtraToken('some-non-existing-token-name')).to.be.undefined;
+    const auth0Client = new Auth0Web({
+      domain,
+      clientID,
+      redirectUri,
+    });
 
-    let auth0Properties: Auth0Properties = {domain: 'bk-samples.auth0.com', clientID: 'someClientID'};
-    Auth0Web.configure(auth0Properties);
-    Auth0Web.silentAuth('transactions', 'https://transactions.auth0samples.com/', 'get:transactions');
-    chai.expect(Auth0Web.getExtraToken('transactions')).to.not.be.undefined;
-    chai.expect(Auth0Web.getExtraToken('some-non-existing-token-name')).to.be.undefined;
+    chai.expect(auth0Client.getAccessToken('transactions')).to.be.undefined;
+    chai.expect(auth0Client.getAccessToken('some-non-existing-token-name')).to.be.undefined;
+
+    auth0Client.checkSession('transactions');
+
+    chai.expect(auth0Client.getAccessToken('transactions')).not.to.be.undefined;
+    chai.expect(auth0Client.getAccessToken('some-non-existing-token-name')).to.be.undefined;
   }
 });
