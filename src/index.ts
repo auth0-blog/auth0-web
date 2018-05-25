@@ -82,10 +82,9 @@ export default class Auth0Web {
     });
   }
 
-  checkSession(audience?: string, scope?: string): Promise<boolean> {
-    scope = Auth0Web.normalizeScope(scope);
+  checkSession(): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
-      this._auth0Client.checkSession({audience, scope}, async (error, authResult) => {
+      this._auth0Client.checkSession(this._currentProperties, async (error, authResult) => {
         if (error && error.error !== 'login_required') {
           // some other error
           return reject(error);
