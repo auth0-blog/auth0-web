@@ -72,6 +72,7 @@ export default class Auth0Web {
     return new Promise((resolve, reject) => {
       this._auth0Client.parseHash(async (err, authResult: AuthResult) => {
         if (err) return reject(err);
+        if (!authResult) resolve(null);
         window.location.hash = '';
         try {
           resolve(await this.loadProfile(authResult));
@@ -119,7 +120,8 @@ export default class Auth0Web {
 
   private setAccessToken(accessToken: string, expiresIn: number): void {
     this._accessToken = accessToken;
-    setTimeout(this.clearSession, expiresIn);
+    // expiresIn comes in seconds and setTimeout expect milliseconds
+    setTimeout(this.clearSession, expiresIn * 1000);
   }
 
   private clearSession() {

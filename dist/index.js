@@ -89,6 +89,8 @@ var Auth0Web = /** @class */ (function () {
                         case 0:
                             if (err)
                                 return [2 /*return*/, reject(err)];
+                            if (!authResult)
+                                resolve(null);
                             window.location.hash = '';
                             _b.label = 1;
                         case 1:
@@ -157,7 +159,8 @@ var Auth0Web = /** @class */ (function () {
     };
     Auth0Web.prototype.setAccessToken = function (accessToken, expiresIn) {
         this._accessToken = accessToken;
-        setTimeout(this.clearSession, expiresIn);
+        // expiresIn comes in seconds and setTimeout expect milliseconds
+        setTimeout(this.clearSession, expiresIn * 1000);
     };
     Auth0Web.prototype.clearSession = function () {
         delete this._profile;
