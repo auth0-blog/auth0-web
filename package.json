@@ -1,5 +1,5 @@
 {
-  "name": "@digituz/auth0-web",
+  "name": "auth0-web",
   "version": "2.1.1",
   "description": "",
   "main": "./dist/index.js",
