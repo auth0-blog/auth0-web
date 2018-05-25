@@ -3,27 +3,27 @@
 [![License][license-image]][license-url]
 [![NPM version][npm-image]][npm-url]
 
-## Auth0 Web
+# Auth0 Web
 
 This is a wrapper around [Auth0.js](https://github.com/auth0/auth0.js) that favors convention over configuration. Using 
-it on frameworks like Angular and React is quite easy. To use it, we basically have to do four things:
+it on Single-Page Application (SPA) frameworks/libraries like Angular, React, Vue.js, and Aurelia is quite easy.
 
-1. Install the dependency:
+## Installation
+
+First, you need to install it with NPM:
 
 ```bash
 npm i auth0-web
 ```
 
-2. Import it on some component:
+## Instatiation/Configuration
 
-```
-import * as Auth0 from 'auth0-web';
-```
+Then, you have to import the main class in your code and create one or more Auth0 clients:
 
-3. Configure it with our Auth0 properties:
+```js
+import Auth0Web from 'auth0-web';
 
-```javascript
-Auth0.configure({
+const auth0Client = new Auth0Web({
   domain: 'bk-samples.auth0.com',
   audience: 'https://contacts.digituz.com.br',
   clientID: '8a7myyLd6leG0HbOhMPtLaSgZ2itD3gK',
@@ -33,22 +33,79 @@ Auth0.configure({
 });
 ```
 
-4. Use the API:
+## Authentication
+
+To authenticate users, you can either begin a explicit authentication process with the `signIn` method (the user will be redirected to the login page):
 
 ```javascript
-// triggers the authentication process
-Auth0.signIn();
-
-// handle authentication callback
-Auth0.handleAuthCallback();
-
-// get user profile
-Auth0.getProfile();
+// you can initiate the authentication process
+auth0Client.signIn();
 ```
+
+Or you can try to silently authenticate the user:
+
+```javascript
+// or you can check if there is a session on the IdP
+auth0Client.checkSession();
+```
+
+If you follow the explicit authentication, you will need to use `parseHash` to fetch the token return by Auth0.
+
+## Public Methods
+
+By the time of writing, this are the public methods available on `Auth0Web` instances:
+
+### `checkSession`
+
+The `checkSession` method initiates the silent authentication. If it succeeds, it loads the session with data (`access_token`).
+
+### `constructor`
+
+The `constructor` allows developers to configure new instances. Properties like `domain`, `audience`, and `scope` can only be defined through this method.
+
+### `getProfile`
+
+The `getProfile` method will return an object with user data. For example, this object will contain `name`, `picture`, `email`, etc.
+
+### `getAccessToken`
+
+If available, `getAccessToken` will return to the developer an `accessToken`. With this token, the developer can consume, for example, resources from a server.
+
+### `getProperties`
+
+The `getProperties` gives you access to the properties that you used when configuring your instance.
+
+### `isAuthenticated`
+
+The `isAuthenticated` simply checks if there is an `accessToken` available and return a boolean based on it.
+
+### `parseHash`
+
+The `parseHash` is used to fetch, from the callback URL, tokens returned by Auth0. If this method finds tokens in the URL, it will
+load the user profile and load everything in memory. Who can access these data will depend on how you develop your application.
+
+### `signIn`
+
+The `signIn` method initialises the explicit authentication process. That is, when called, this function will redirect users to the Auth0 login page where they
+will have the chance to choose a identity provider or input their credentials (username and password).
+
+### `signOut`
+
+The `signOut` method removes all state from memory and invalidates the session on Auth0 servers.
+
+### `subscribe`
+
+The `subscribe` method enables developers to subscribe listeners to the authentication state. These listeners will be called in the following situations:
+
+1. when the library finishes loading the user profile;
+2. when the `signOut` method is explicitly called;
+3. when the `accessToken` validity expires;
+
+## Further Details
 
 By default, this library uses the [**Implicit Grant flow** of OAuth 2.0](https://auth0.com/docs/api-auth/tutorials/implicit-grant).
 However, developers looking forward to use the [**Authorization Code Grant flow**](https://auth0.com/docs/api-auth/tutorials/authorization-code-grant)
-can still use this library by passing `oauthFlow: AUTHORIZATION_CODE`, alongside with the other properties, to `Auth0Web.configure()`.
+can still use this library by passing `oauthFlow: AUTHORIZATION_CODE`, alongside with the other properties, to the `Auth0Web` constructor.
 
 ## Development Tips
 
