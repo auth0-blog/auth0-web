@@ -4,15 +4,9 @@ const IMPLICTY_RESPONSE_TYPE = 'token id_token';
 
 export interface AuthResult { accessToken: string, idToken: string, expiresIn: number }
 
-export interface Subscriber {
-  (authenticated: boolean, audience?: string): void;
-}
 
-interface TokenMap {
-  [key: string]: {
-    accessToken: string,
-    expiresAt: number,
-  };
+export interface Subscriber {
+  (authenticated: boolean): void;
 }
 
 interface SubscriberMap {
@@ -23,7 +17,7 @@ const DEFAULT_KEY = 'default';
 
 export default class Auth0Web {
   protected _auth0Client: WebAuth;
-  private _accessTokens: TokenMap = {};
+  private _accessToken: string;
   private _currentProperties: AuthOptions;
   private _idToken: string;
   private _profile: Auth0UserProfile;
@@ -31,19 +25,26 @@ export default class Auth0Web {
 
   constructor(properties: AuthOptions) {
     this._currentProperties = properties;
+
+    let {scope} = properties;
+    scope = Auth0Web.normalizeScope(scope);
+
     this._auth0Client = new WebAuth({
       ...properties,
+      scope,
       responseType: IMPLICTY_RESPONSE_TYPE
     });
+
+    // used on timeout (so, needs the reference)
+    this.clearSession = this.clearSession.bind(this);
   }
 
   getProfile(): Auth0UserProfile {
     return this._profile;
   }
 
-  getAccessToken(audience ?: string): string {
-    if (!this._accessTokens[audience || DEFAULT_KEY]) return;
-    return this._accessTokens[audience || DEFAULT_KEY].accessToken;
+  getAccessToken(): string {
+    return this._accessToken;
   }
 
   getProperties() {
@@ -63,9 +64,8 @@ export default class Auth0Web {
     });
   }
 
-  isAuthenticated(audience?: string): boolean {
-    if (this._accessTokens[audience || DEFAULT_KEY]) return true;
-    return false;
+  isAuthenticated(): boolean {
+    return this._accessToken != null;
   }
 
   parseHash(): Promise<Auth0UserProfile> {
@@ -82,7 +82,8 @@ export default class Auth0Web {
     });
   }
 
-  checkSession(audience?: string, scope = 'openid'): Promise<boolean> {
+  checkSession(audience?: string, scope?: string): Promise<boolean> {
+    scope = Auth0Web.normalizeScope(scope);
     return new Promise<boolean>((resolve, reject) => {
       this._auth0Client.checkSession({audience, scope}, async (error, authResult) => {
         if (error && error.error !== 'login_required') {
@@ -94,13 +95,12 @@ export default class Auth0Web {
         }
 
         if (this.isAuthenticated()) {
-          const expiresAt = authResult.expiresIn * 1000 + Date.now();
-          this.addAccessToken(authResult.accessToken, expiresAt, audience);
+          this.setAccessToken(authResult.accessToken, authResult.expiresIn);
           return resolve(true);
         }
 
         try {
-          await this.handleAuthResult(authResult, audience);
+          await this.handleAuthResult(authResult);
           resolve(true);
         } catch (err) {
           reject(err);
@@ -118,38 +118,29 @@ export default class Auth0Web {
     }
   }
 
-  private addAccessToken(accessToken: string, expiresAt: number, audience?: string): void {
-    if (!this._accessTokens) this._accessTokens = {};
-
-    const accessTokenDetails = {
-      accessToken,
-      expiresAt,
-    };
-
-    if (!this._accessTokens[DEFAULT_KEY]) this._accessTokens[DEFAULT_KEY] = accessTokenDetails;
-
-    if (audience) this._accessTokens[audience] = accessTokenDetails;
+  private setAccessToken(accessToken: string, expiresIn: number): void {
+    this._accessToken = accessToken;
+    setTimeout(this.clearSession, expiresIn);
   }
 
   private clearSession() {
     delete this._profile;
-    this._accessTokens = {};
+    delete this._accessToken;
     delete this._idToken;
     this.notifySubscribers(false);
   }
 
-  private handleAuthResult(authResult: AuthResult, audience ?: string): Promise<Auth0UserProfile> {
+  private handleAuthResult(authResult: AuthResult): Promise<Auth0UserProfile> {
     window.location.hash = '';
-    return this.loadProfile(authResult, audience);
+    return this.loadProfile(authResult);
   }
 
-  private loadProfile(authResult: AuthResult, audience?: string): Promise<Auth0UserProfile> {
+  private loadProfile(authResult: AuthResult): Promise<Auth0UserProfile> {
     return new Promise((resolve, reject) => {
       this._auth0Client.client.userInfo(authResult.accessToken, (err, profile: Auth0UserProfile) => {
         if (err) return reject(err);
 
-        const expiresAt = authResult.expiresIn * 1000 + Date.now();
-        this.addAccessToken(authResult.accessToken, expiresAt, audience);
+        this.setAccessToken(authResult.accessToken, authResult.expiresIn);
         this._idToken = authResult.idToken;
         this._profile = profile;
 
@@ -159,9 +150,16 @@ export default class Auth0Web {
     });
   }
 
-  private notifySubscribers(authenticated: boolean, audience?: string) {
+  private notifySubscribers(authenticated: boolean) {
     Object.keys(this._subscribers).forEach((subscriberKey: string) => {
-      this._subscribers[subscriberKey](authenticated, audience);
+      this._subscribers[subscriberKey](authenticated);
     });
+  }
+
+  private static normalizeScope(scope = 'openid') {
+    if (scope.indexOf('openid') < 0) {
+      scope = `openid ${scope}`;
+    }
+    return scope;
   }
 }

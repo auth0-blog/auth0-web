@@ -18,11 +18,12 @@ describe('Testing basic functionality of this wrapper', () => {
   it('should be able to support subscribers', checkSubscribeAuthenticated);
   it('should be able to support subscribers when not auth', checkSubscribeUnauthenticated);
   it('should support silent auth', checkSilentAuth);
+  it('should notify subscribers on expire', checkTimeout);
 
   function checkPublicAPI() {
     chai.expect(Auth0Web).to.not.be.undefined;
 
-    const subscriber: Subscriber = (authenticated, audience) => {};
+    const subscriber: Subscriber = (authenticated) => {};
     chai.expect(subscriber).to.not.be.undefined;
 
     const authenticationResult: AuthResult = {
@@ -127,12 +128,23 @@ describe('Testing basic functionality of this wrapper', () => {
       redirectUri,
     });
 
-    chai.expect(auth0Client.getAccessToken('transactions')).to.be.undefined;
-    chai.expect(auth0Client.getAccessToken('some-non-existing-token-name')).to.be.undefined;
-
+    chai.expect(auth0Client.getAccessToken()).to.be.undefined;
     auth0Client.checkSession('transactions');
+    chai.expect(auth0Client.getAccessToken()).not.to.be.undefined;
+  }
 
-    chai.expect(auth0Client.getAccessToken('transactions')).not.to.be.undefined;
-    chai.expect(auth0Client.getAccessToken('some-non-existing-token-name')).to.be.undefined;
+  function checkTimeout(done) {
+    const auth0Client = new Auth0Web({
+      domain,
+      clientID,
+      redirectUri,
+    });
+
+    auth0Client.parseHash().then(() => {
+      auth0Client.subscribe((authenticated) => {
+        chai.expect(authenticated).to.be.false;
+        done();
+      });
+    });
   }
 });

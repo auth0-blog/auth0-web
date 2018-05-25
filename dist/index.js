@@ -48,18 +48,19 @@ var IMPLICTY_RESPONSE_TYPE = 'token id_token';
 var DEFAULT_KEY = 'default';
 var Auth0Web = /** @class */ (function () {
     function Auth0Web(properties) {
-        this._accessTokens = {};
         this._subscribers = {};
         this._currentProperties = properties;
-        this._auth0Client = new auth0_js_1.WebAuth(__assign({}, properties, { responseType: IMPLICTY_RESPONSE_TYPE }));
+        var scope = properties.scope;
+        scope = Auth0Web.normalizeScope(scope);
+        this._auth0Client = new auth0_js_1.WebAuth(__assign({}, properties, { scope: scope, responseType: IMPLICTY_RESPONSE_TYPE }));
+        // used on timeout (so, needs the reference)
+        this.clearSession = this.clearSession.bind(this);
     }
     Auth0Web.prototype.getProfile = function () {
         return this._profile;
     };
-    Auth0Web.prototype.getAccessToken = function (audience) {
-        if (!this._accessTokens[audience || DEFAULT_KEY])
-            return;
-        return this._accessTokens[audience || DEFAULT_KEY].accessToken;
+    Auth0Web.prototype.getAccessToken = function () {
+        return this._accessToken;
     };
     Auth0Web.prototype.getProperties = function () {
         return this._currentProperties;
@@ -75,10 +76,8 @@ var Auth0Web = /** @class */ (function () {
             clientID: clientID,
         });
     };
-    Auth0Web.prototype.isAuthenticated = function (audience) {
-        if (this._accessTokens[audience || DEFAULT_KEY])
-            return true;
-        return false;
+    Auth0Web.prototype.isAuthenticated = function () {
+        return this._accessToken != null;
     };
     Auth0Web.prototype.parseHash = function () {
         var _this = this;
@@ -111,10 +110,10 @@ var Auth0Web = /** @class */ (function () {
     };
     Auth0Web.prototype.checkSession = function (audience, scope) {
         var _this = this;
-        if (scope === void 0) { scope = 'openid'; }
+        scope = Auth0Web.normalizeScope(scope);
         return new Promise(function (resolve, reject) {
             _this._auth0Client.checkSession({ audience: audience, scope: scope }, function (error, authResult) { return __awaiter(_this, void 0, void 0, function () {
-                var expiresAt, err_2;
+                var err_2;
                 return __generator(this, function (_a) {
                     switch (_a.label) {
                         case 0:
@@ -127,14 +126,13 @@ var Auth0Web = /** @class */ (function () {
                                 return [2 /*return*/, resolve(false)];
                             }
                             if (this.isAuthenticated()) {
-                                expiresAt = authResult.expiresIn * 1000 + Date.now();
-                                this.addAccessToken(authResult.accessToken, expiresAt, audience);
+                                this.setAccessToken(authResult.accessToken, authResult.expiresIn);
                                 return [2 /*return*/, resolve(true)];
                             }
                             _a.label = 1;
                         case 1:
                             _a.trys.push([1, 3, , 4]);
-                            return [4 /*yield*/, this.handleAuthResult(authResult, audience)];
+                            return [4 /*yield*/, this.handleAuthResult(authResult)];
                         case 2:
                             _a.sent();
                             resolve(true);
@@ -158,36 +156,27 @@ var Auth0Web = /** @class */ (function () {
             delete _this._subscribers[subscriberKey];
         };
     };
-    Auth0Web.prototype.addAccessToken = function (accessToken, expiresAt, audience) {
-        if (!this._accessTokens)
-            this._accessTokens = {};
-        var accessTokenDetails = {
-            accessToken: accessToken,
-            expiresAt: expiresAt,
-        };
-        if (!this._accessTokens[DEFAULT_KEY])
-            this._accessTokens[DEFAULT_KEY] = accessTokenDetails;
-        if (audience)
-            this._accessTokens[audience] = accessTokenDetails;
+    Auth0Web.prototype.setAccessToken = function (accessToken, expiresIn) {
+        this._accessToken = accessToken;
+        setTimeout(this.clearSession, expiresIn);
     };
     Auth0Web.prototype.clearSession = function () {
         delete this._profile;
-        this._accessTokens = {};
+        delete this._accessToken;
         delete this._idToken;
         this.notifySubscribers(false);
     };
-    Auth0Web.prototype.handleAuthResult = function (authResult, audience) {
+    Auth0Web.prototype.handleAuthResult = function (authResult) {
         window.location.hash = '';
-        return this.loadProfile(authResult, audience);
+        return this.loadProfile(authResult);
     };
-    Auth0Web.prototype.loadProfile = function (authResult, audience) {
+    Auth0Web.prototype.loadProfile = function (authResult) {
         var _this = this;
         return new Promise(function (resolve, reject) {
             _this._auth0Client.client.userInfo(authResult.accessToken, function (err, profile) {
                 if (err)
                     return reject(err);
-                var expiresAt = authResult.expiresIn * 1000 + Date.now();
-                _this.addAccessToken(authResult.accessToken, expiresAt, audience);
+                _this.setAccessToken(authResult.accessToken, authResult.expiresIn);
                 _this._idToken = authResult.idToken;
                 _this._profile = profile;
                 _this.notifySubscribers(true);
@@ -195,11 +184,18 @@ var Auth0Web = /** @class */ (function () {
             });
         });
     };
-    Auth0Web.prototype.notifySubscribers = function (authenticated, audience) {
+    Auth0Web.prototype.notifySubscribers = function (authenticated) {
         var _this = this;
         Object.keys(this._subscribers).forEach(function (subscriberKey) {
-            _this._subscribers[subscriberKey](authenticated, audience);
+            _this._subscribers[subscriberKey](authenticated);
         });
+    };
+    Auth0Web.normalizeScope = function (scope) {
+        if (scope === void 0) { scope = 'openid'; }
+        if (scope.indexOf('openid') < 0) {
+            scope = "openid " + scope;
+        }
+        return scope;
     };
     return Auth0Web;
 }());
