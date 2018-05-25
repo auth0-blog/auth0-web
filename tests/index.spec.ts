@@ -141,10 +141,10 @@ describe('Testing basic functionality of this wrapper', () => {
     });
 
     auth0Client.parseHash().then(() => {
-      auth0Client.subscribe((authenticated) => {
-        chai.expect(authenticated).to.be.false;
-        done();
-      });
+      setTimeout(() => {
+        chai.expect(auth0Client.isAuthenticated()).to.be.true;
+        done()
+      }, 1500);
     });
   }
 });

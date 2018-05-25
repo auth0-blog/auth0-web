@@ -29,7 +29,7 @@ export const auth0Mock = {
       parseHash: (cb) => {
         const accessToken = 'some-access-token';
         const idToken = 'some-id-token';
-        const expiresIn = 1;
+        const expiresIn = 1.5;
         cb(null, {accessToken, idToken, expiresIn})
       },
       properties: () => (properties),

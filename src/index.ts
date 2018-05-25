@@ -88,6 +88,7 @@ export default class Auth0Web {
       this._auth0Client.checkSession(this._currentProperties, async (error, authResult) => {
         if (error && error.error !== 'login_required') {
           // some other error
+          this.clearSession();
           return reject(error);
         } else if (error) {
           // explicit authentication required
@@ -120,8 +121,8 @@ export default class Auth0Web {
 
   private setAccessToken(accessToken: string, expiresIn: number): void {
     this._accessToken = accessToken;
-    // expiresIn comes in seconds and setTimeout expect milliseconds
-    setTimeout(this.clearSession, expiresIn * 1000);
+    // tries to refresh session before expering
+    setTimeout(this.checkSession, expiresIn * 1000 - 1000);
   }
 
   private clearSession() {
