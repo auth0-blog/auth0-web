@@ -99,7 +99,7 @@ The `subscribe` method enables developers to subscribe listeners to the authenti
 
 1. when the library finishes loading the user profile;
 2. when the `signOut` method is explicitly called;
-3. when the `accessToken` validity expires;
+3. when the session on Auth0 server goes invalid;
 
 ## Further Details
 
