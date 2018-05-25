@@ -129,7 +129,7 @@ describe('Testing basic functionality of this wrapper', () => {
     });
 
     chai.expect(auth0Client.getAccessToken()).to.be.undefined;
-    auth0Client.checkSession('transactions');
+    auth0Client.checkSession();
     chai.expect(auth0Client.getAccessToken()).not.to.be.undefined;
   }
 
