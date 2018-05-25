@@ -59,6 +59,10 @@ By the time of writing, this are the public methods available on `Auth0Web` inst
 
 The `checkSession` method initiates the silent authentication. If it succeeds, it loads the session with data (`access_token`).
 
+### `clearSession`
+
+The `clearSession` method removes all user data from memory (e.g. `accessToken` and `profile`).
+
 ### `constructor`
 
 The `constructor` allows developers to configure new instances. Properties like `domain`, `audience`, and `scope` can only be defined through this method.
@@ -91,7 +95,7 @@ will have the chance to choose a identity provider or input their credentials (u
 
 ### `signOut`
 
-The `signOut` method removes all state from memory and invalidates the session on Auth0 servers.
+The `signOut` method redirects users to Auth0 server to invalidate their sessions then redirect users back to your app.
 
 ### `subscribe`
 

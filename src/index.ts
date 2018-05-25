@@ -2,8 +2,11 @@ import {Auth0UserProfile, AuthOptions, WebAuth} from 'auth0-js';
 
 const IMPLICTY_RESPONSE_TYPE = 'token id_token';
 
-export interface AuthResult { accessToken: string, idToken: string, expiresIn: number }
-
+export interface AuthResult {
+  accessToken: string,
+  idToken: string,
+  expiresIn: number
+}
 
 export interface Subscriber {
   (authenticated: boolean): void;
@@ -12,8 +15,6 @@ export interface Subscriber {
 interface SubscriberMap {
   [key: string]: Subscriber;
 }
-
-const DEFAULT_KEY = 'default';
 
 export default class Auth0Web {
   protected _auth0Client: WebAuth;
@@ -34,9 +35,13 @@ export default class Auth0Web {
       scope,
       responseType: IMPLICTY_RESPONSE_TYPE
     });
+  }
 
-    // used on timeout (so, needs the reference)
-    this.clearSession = this.clearSession.bind(this);
+  public clearSession() {
+    delete this._profile;
+    delete this._accessToken;
+    delete this._idToken;
+    this.notifySubscribers(false);
   }
 
   getProfile(): Auth0UserProfile {
@@ -56,7 +61,6 @@ export default class Auth0Web {
   }
 
   signOut(returnTo?: string): void {
-    this.clearSession();
     const {clientID} = this._currentProperties;
     this._auth0Client.logout({
       returnTo,
@@ -88,7 +92,6 @@ export default class Auth0Web {
       this._auth0Client.checkSession(this._currentProperties, async (error, authResult) => {
         if (error && error.error !== 'login_required') {
           // some other error
-          this.clearSession();
           return reject(error);
         } else if (error) {
           // explicit authentication required
@@ -122,14 +125,10 @@ export default class Auth0Web {
   private setAccessToken(accessToken: string, expiresIn: number): void {
     this._accessToken = accessToken;
     // tries to refresh session before expering
-    setTimeout(this.checkSession, expiresIn * 1000 - 1000);
-  }
-
-  private clearSession() {
-    delete this._profile;
-    delete this._accessToken;
-    delete this._idToken;
-    this.notifySubscribers(false);
+    const timeout = setTimeout(() => {
+      this.notifySubscribers(false);
+      clearTimeout(timeout);
+    }, expiresIn * 1000 - 1000);
   }
 
   private handleAuthResult(authResult: AuthResult): Promise<Auth0UserProfile> {

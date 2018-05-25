@@ -45,7 +45,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var auth0_js_1 = require("auth0-js");
 var IMPLICTY_RESPONSE_TYPE = 'token id_token';
-var DEFAULT_KEY = 'default';
 var Auth0Web = /** @class */ (function () {
     function Auth0Web(properties) {
         this._subscribers = {};
@@ -53,9 +52,13 @@ var Auth0Web = /** @class */ (function () {
         var scope = properties.scope;
         scope = Auth0Web.normalizeScope(scope);
         this._auth0Client = new auth0_js_1.WebAuth(__assign({}, properties, { scope: scope, responseType: IMPLICTY_RESPONSE_TYPE }));
-        // used on timeout (so, needs the reference)
-        this.clearSession = this.clearSession.bind(this);
     }
+    Auth0Web.prototype.clearSession = function () {
+        delete this._profile;
+        delete this._accessToken;
+        delete this._idToken;
+        this.notifySubscribers(false);
+    };
     Auth0Web.prototype.getProfile = function () {
         return this._profile;
     };
@@ -69,7 +72,6 @@ var Auth0Web = /** @class */ (function () {
         this._auth0Client.authorize();
     };
     Auth0Web.prototype.signOut = function (returnTo) {
-        this.clearSession();
         var clientID = this._currentProperties.clientID;
         this._auth0Client.logout({
             returnTo: returnTo,
@@ -158,15 +160,13 @@ var Auth0Web = /** @class */ (function () {
         };
     };
     Auth0Web.prototype.setAccessToken = function (accessToken, expiresIn) {
+        var _this = this;
         this._accessToken = accessToken;
-        // expiresIn comes in seconds and setTimeout expect milliseconds
-        setTimeout(this.clearSession, expiresIn * 1000);
-    };
-    Auth0Web.prototype.clearSession = function () {
-        delete this._profile;
-        delete this._accessToken;
-        delete this._idToken;
-        this.notifySubscribers(false);
+        // tries to refresh session before expering
+        var timeout = setTimeout(function () {
+            _this.notifySubscribers(false);
+            clearTimeout(timeout);
+        }, expiresIn * 1000 - 1000);
     };
     Auth0Web.prototype.handleAuthResult = function (authResult) {
         window.location.hash = '';

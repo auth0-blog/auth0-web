@@ -72,6 +72,7 @@ describe('Testing basic functionality of this wrapper', () => {
     chai.expect(auth0Client.getAccessToken()).not.to.be.undefined;
 
     auth0Client.signOut();
+    auth0Client.clearSession();
 
     chai.expect(auth0Client.isAuthenticated()).to.be.false;
     chai.expect(auth0Client.getProfile()).to.be.undefined;
@@ -102,11 +103,10 @@ describe('Testing basic functionality of this wrapper', () => {
 
     const unsubscribe = auth0Client.subscribe(signedIn => {
       chai.expect(signedIn).to.be.equal(auth0Client.isAuthenticated());
-      if (!signedIn) done();
+      done();
     });
 
     auth0Client.parseHash();
-    auth0Client.signOut();
     unsubscribe();
   }
 
@@ -141,9 +141,10 @@ describe('Testing basic functionality of this wrapper', () => {
     });
 
     auth0Client.parseHash().then(() => {
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         chai.expect(auth0Client.isAuthenticated()).to.be.true;
-        done()
+        clearTimeout(timeout);
+        done();
       }, 1500);
     });
   }
