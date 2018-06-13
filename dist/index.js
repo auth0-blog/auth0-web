@@ -62,6 +62,9 @@ var Auth0Web = /** @class */ (function () {
     Auth0Web.prototype.getProfile = function () {
         return this._profile;
     };
+    Auth0Web.prototype.getIdToken = function () {
+        return this._idToken;
+    };
     Auth0Web.prototype.getAccessToken = function () {
         return this._accessToken;
     };

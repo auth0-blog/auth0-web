@@ -48,6 +48,10 @@ export default class Auth0Web {
     return this._profile;
   }
 
+  getIdToken(): string {
+    return this._idToken;
+  }
+
   getAccessToken(): string {
     return this._accessToken;
   }
